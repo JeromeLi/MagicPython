@@ -16,25 +16,40 @@ import asyncio
 import re
 import time
 import aiohttp
+from lxml import html
+from bs4 import BeautifulSoup
+import uvloop
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36'
+    }
 
 bookurl = 'https://www.xbiquge.so/book/49099/'
 
 async def get_index():
     #! Get the index of the article
     async with aiohttp.request('get', url = bookurl) as response:
-        text = await response.text()
-        result = re.findall(r'<dd><a href="(.*?)">(.*?)</a></dd>', text)
+        page_text = await response.text()
+        result = re.findall(r'<dd><a href="(.*?)">(.*?)</a></dd>', page_text)
         return result
 
 async def get_article(page_url, title):
     #! Get the article
-    async with aiohttp.request('get', url = page_url) as response:
-        response.encoding = 'GBK'
-        text = await response.text()
-        result = re.findall(r'<div id="content" name="content">(.*?)</div>', text, re.S)
-        result = ''.join(result)
-        with open(title + '.txt', 'w') as f:
-            f.write(result)
+    cs = aiohttp.ClientSession()
+    async with cs.request('get', url = page_url, header = headers) as response:
+        # content = await response.text()
+        content = await response.read()
+        # result = re.findall(r'<div id="content" name="content">(.*?)</div>', content, re.S)
+        # result = re.findall(r'<div id="content" name="content">(.*?)</div>', content)
+        # result = ''.join(result)
+        tree = html.fromstring(content)
+        result = tree.xpath('//*[@id="content"]/text()')  #! xpath string for //*[@id="content"]
+        # result = BeautifulSoup(result)
+        text = ''.join(result[1:])
+        with open(title + '.txt', 'wb') as f:
+            f.write(text)
 
 async def main():
     #! Main function
