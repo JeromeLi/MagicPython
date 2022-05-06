@@ -14,11 +14,11 @@
 
 import asyncio
 import re
+import os
 import time
 import aiohttp
-from lxml import html
-from bs4 import BeautifulSoup
 import uvloop
+from lxml import html
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -28,41 +28,111 @@ headers = {
 
 bookurl = 'https://www.xbiquge.so/book/49099/'
 
+async def get_bookname():
+    #! get the book name from the book url
+    session = aiohttp.ClientSession()
+    async with session.get(url = bookurl, headers = headers) as response:
+        content = await response.read()
+        tree = html.fromstring(content)
+        result = tree.xpath('/html/body/div[2]/div[2]/div[2]/h1/text()')
+        # await session.close()
+        bookname = result[0]
+        print(f'Book Name: {bookname}')
+    await session.close()
+    return bookname
+
+async def book_dir(dirname):
+    if os.path.exists(dirname) != True:
+        print('Create Book Name Dir:', dirname)
+        os.mkdir(dirname)
+    os.chdir(dirname)
+    print('Current Dir:', os.getcwd())
+    filepath = os.getcwd()
+    return filepath
+
 async def get_index():
     #! Get the index of the article
-    async with aiohttp.request('get', url = bookurl) as response:
+    session = aiohttp.ClientSession()
+    async with session.get(url = bookurl, headers=headers, verify_ssl=False) as response:
         page_text = await response.text()
         result = re.findall(r'<dd><a href="(.*?)">(.*?)</a></dd>', page_text)
-        return result
+        # await session.close()
+        bn = await get_bookname()
+        with open(bn + '_index.txt', 'w') as f:
+            for page_url, title in result:
+                page_url = bookurl + page_url
+                f.write(page_url + '    ' + title + "\n")
+        f.close()
+    await session.close()
+    return result
 
-async def get_article(page_url, title):
+async def get_article(page_url, title, nb):
     #! Get the article
-    cs = aiohttp.ClientSession()
-    async with cs.request('get', url = page_url, header = headers) as response:
-        # content = await response.text()
-        content = await response.read()
-        # result = re.findall(r'<div id="content" name="content">(.*?)</div>', content, re.S)
-        # result = re.findall(r'<div id="content" name="content">(.*?)</div>', content)
-        # result = ''.join(result)
-        tree = html.fromstring(content)
-        result = tree.xpath('//*[@id="content"]/text()')  #! xpath string for //*[@id="content"]
-        # result = BeautifulSoup(result)
-        text = ''.join(result[1:])
-        with open(title + '.txt', 'wb') as f:
-            f.write(text)
+    page_url = bookurl + page_url
+    target_dir = os.path.join(os.path.dirname(__file__) + '/' + nb + '/')
+    filename = os.path.join(target_dir, title + '.txt')
+    # os.chdir(target_dir)
+    # print(f'Target dir: {target_dir}')
+
+    try:
+        # if os.getcwd() != os.path.dirname(filename):
+        os.chdir(target_dir)
+        if os.path.exists(filename) == False:
+            # print(f'not found: {filename}')
+            session = aiohttp.ClientSession()
+            async with session.get(url = page_url, headers = headers, verify_ssl=False) as response:
+                content = await response.read()
+                tree = html.fromstring(content)
+                result = tree.xpath('//*[@id="content"]/text()')  #! xpath string for //*[@id="content"]
+                text = ''.join(result[1:])
+                text = text.replace('\u00a0\u00a0\u00a0', '\n')
+                print(f'{time.strftime("%X")} --> {page_url} {title}')
+                with open(title + '.txt', 'w') as f:
+                    f.write(text)
+                f.close()
+            await session.close()
+        else:
+            print(f'{filename} Already exists! Skip!')
+    except Exception:
+        print(f'{page_url} {title} Error!')
+
+
+# def callback_writefile (future):
+#     print(f'{time.strftime("%X")} --> {future.result()}')
+#     if os.getcwd() != os.path.dirname(filename):
+#         os.chdir(os.path.dirname(filename))
+#     else:
+#         pass
+
+#     with open(title + '.txt', 'w') as f:
+#         f.write(text)
+#     f.close()
+
+# async def main_parallel():
+#     index = await get_index()
+    # task = []
+    # # async with aiohttp.ClientSession() as session:
+    # for page_url, title in index:
+    #     task.append(get_article(page_url, title))
+    # loop = asyncio.get_event_loop()
+    # loop.run_until_complete(asyncio.gather(*task, return_exceptions=True))
+    # loop.close()
 
 async def main():
     #! Main function
+    nb = await get_bookname()
+    await book_dir(nb)
     index = await get_index()
+    task = []
+    # async with aiohttp.ClientSession() as session:
     for page_url, title in index:
-        page_url = bookurl + page_url
-        article = await get_article(page_url, title)
-        print(page_url, title)
-    print(index)
+        task.append(get_article(page_url, title, nb))
+    # loop = asyncio.get_event_loop()
+    # loop.run_until_complete(asyncio.gather(*task, return_exceptions=True))
+    # loop.close()
+    await asyncio.gather(*task, return_exceptions=True)
 
-    # for i in index:
-        # print(i)
-
-start_time = time.time()
-asyncio.run(main())
-print('Time: %s' % (time.time() - start_time))
+if __name__ == '__main__':
+    start_time = time.time()
+    asyncio.run(main())
+    print('Time: %s' % (time.time() - start_time))
