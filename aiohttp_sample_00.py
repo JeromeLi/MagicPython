@@ -54,7 +54,7 @@ async def get_index():
     #! Get the index of the article
     session = aiohttp.ClientSession()
     async with session.get(url = bookurl, headers=headers, verify_ssl=False) as response:
-        page_text = await response.text()
+        page_text = await response.text(encoding='gbk')
         result = re.findall(r'<dd><a href="(.*?)">(.*?)</a></dd>', page_text)
         # await session.close()
         bn = await get_bookname()
