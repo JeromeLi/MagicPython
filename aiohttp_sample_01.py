@@ -1,13 +1,3 @@
-'''
-Author: Jerome
-Date: 2022-05-07 11:51:34
-LastEditors: Jerome jerome.lzh@gmail.com
-LastEditTime: 2022-05-25 17:57:10
-FilePath: /MagicPython/aiohttp_sample_01.py
-Description:
-
-Copyleft 2022 GPL-3.0.
-'''
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 '''
@@ -27,19 +17,19 @@ import re
 import os
 import time
 import aiohttp
-# import uvloop
+import uvloop
 from lxml import html
 from retrying import retry
 
-# asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36'
     }
 
 # bookurl = 'https://www.xbiquge.so/book/49099/'
-# bookurl = 'https://www.xbiquge.so/book/21632/'
-bookurl = 'https://www.xbiquge.so/book/53050/'
+bookurl = 'https://www.xbiquge.so/book/21632/'
+# bookurl = 'https://www.xbiquge.so/book/53050/'
 
 
 async def get_bookname():

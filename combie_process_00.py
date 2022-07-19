@@ -18,8 +18,8 @@ import glob
 import asyncio
 from aiohttp_sample_01 import get_bookname as gbn
 
-# os.chdir(bn)
 bn = asyncio.get_event_loop().run_until_complete(gbn())
+os.chdir(bn)
 
 def title_name(name):
     tn = os.path.split(name[1:])[1][:-4]
